@@ -3,6 +3,7 @@ const Exchange = artifacts.require('contracts/Exchange.sol');
 
 const BigNumber =require("bignumber.js");
 const precision = 1000000000000000000;
+const Utils = require('./utils');
 
 contract('ERC1', (accounts) => {
     let instance1;
@@ -45,27 +46,73 @@ contract('ERC1', (accounts) => {
         );
     });
 
-    it('should exchange tokens',async function(){
-        await instance2.approve(
-            exchange.address,
-            new BigNumber(10).mul(precision).valueOf(),
-            { from: accounts[1] }
-        );
-        await instance1.approve(
-            exchange.address,
-            new BigNumber(10).mul(precision).valueOf(),
-            { from: accounts[0] }
-        );
-        await exchange.createExchangeRequest(
-            instance1.address,
-            instance2.address,
-            new BigNumber(1).mul(precision).valueOf(),
-            { from: accounts[0] }
-        );
-        await exchange.exchangeTokens(
-            0,
-            { from: accounts[1] }
-        );
+    describe('exchange', async function () {
+        beforeEach(async function () {
+            await instance2.approve(
+                exchange.address,
+                new BigNumber(10).mul(precision).valueOf(),
+                {from: accounts[1]}
+            );
 
+            await instance1.approve(
+                exchange.address,
+                new BigNumber(10).mul(precision).valueOf(),
+                {from: accounts[0]}
+            );
+        });
+
+        it('should exchange tokens',async function(){
+            await exchange.createExchangeRequest(
+                instance1.address,
+                instance2.address,
+                new BigNumber(1).mul(precision).valueOf(),
+                { from: accounts[0] }
+            );
+            await exchange.exchangeTokens(
+                0,
+                { from: accounts[1] }
+            );
+
+            assert.equal(
+                new BigNumber(
+                    await instance2.balanceOf.call(accounts[1])
+                ).valueOf(),
+                new BigNumber(49).mul(precision).valueOf(),
+                'balance is not equal'
+            );
+            assert.equal(
+                new BigNumber(
+                    await instance1.balanceOf.call(accounts[1])
+                ).valueOf(),
+                new BigNumber(1).mul(precision).valueOf(),
+                'balance is not equal'
+            );
+
+            assert.equal(
+                new BigNumber(
+                    await instance2.balanceOf.call(accounts[0])
+                ).valueOf(),
+                new BigNumber(1).mul(precision).valueOf(),
+                'balance is not equal'
+            );
+            assert.equal(
+                new BigNumber(
+                    await instance1.balanceOf.call(accounts[0])
+                ).valueOf(),
+                new BigNumber(99).mul(precision).valueOf(),
+                'balance is not equal'
+            );
+        });
+
+        it('exchange request should failed', async function(){
+            await exchange.createExchangeRequest(
+                instance1.address,
+                instance2.address,
+                new BigNumber(101).mul(precision).valueOf(),
+                { from: accounts[0] }
+            )
+                .then(Utils.receiptShouldFailed)
+                .catch(Utils.catchReceiptShouldFailed);
+        });
     });
 });
